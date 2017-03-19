@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <omp.h>
 #include <time.h>
 #include <math.h>
-#define TOTAL_CITIES 10
+
+#define TOTAL_CITIES 75
 #define MAX_DISTANCE 15
-#define POPULATION_SIZE 5
+#define POPULATION_SIZE 50
 #define TOTAL_GENERATIONS 50
 #define MUTATION_RATE 0.5
 #define TRUE 1
@@ -180,6 +182,7 @@ void printPopulation(struct Population * population) {
     }
 }
 
+//Parallel
 void printBestSolution(struct Population *population) {
     struct Sample shortestPath = population->samples[0];
 
@@ -193,36 +196,24 @@ void printBestSolution(struct Population *population) {
 
 }
 
-int main() {
-    srand(time(NULL));
-    clock_gettime(CLOCK_MONOTONIC, &begin);
-    //Codigo vai aqui
+void printBestSolutionParallel(struct Population *population) {
+//    struct Sample shortestPath = population->samples[0];
+    long shortestPath = population->samples[0].fitness;
+//    printf("Thread %d", threadNum);
+#pragma omp parallel for reduction(min : shortestPath) num_threads(4)
+    for (int i = 1; i < POPULATION_SIZE; ++i) {
 
-    initializaDistances();
-    printMatrix(distances);
-    /*//Testing createRandomChromossome, printChromossome, and fitness;
-    struct Sample random = createRandomSample();
-    printSample(&random);
-    fitness(&random);*/
+        /*int id = omp_get_thread_num();
+        int nt = omp_get_num_threads();
+        printf("\nIndice: %d", i);
+        printf("\nSou uma thread %d de um total de %d\n", id , nt );*/
 
-    /*//Testing crossover
-     struct Sample parent1 = createRandomChromossome();
-     struct Sample parent2 = createRandomSample();
-     printf("\n Parent1");
-     printChromossome(&parent1);
-     printf("\n Parent2");
-     printChromossome(&parent2);
-     struct Sample child1 = crossover(&parent1, &parent2);
-     printf("\n Child");
-     printSample(&child1);*/
-    //TEMPO eh calculado daqui pra baixo
-    clock_gettime(CLOCK_MONOTONIC, &end);
+        if (population->samples[i].fitness < shortestPath){
+            shortestPath = population->samples[i].fitness;
+        }
+    }
 
-    gaSolve();
-    double timeSpent = end.tv_sec - begin.tv_sec;
-    timeSpent += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
-    printf("\nTime spent: %.10lf seconds.\n", timeSpent);
-    return 0;
+    printf("\nShortest path: %ld", shortestPath);
 }
 
 void gaSolve() {
@@ -293,10 +284,42 @@ void gaSolve() {
 
     for (long l = 0; l < TOTAL_GENERATIONS; ++l) {
         printf("\n\n ----------GENERATION %ld----------", l);
-        printBestSolution(&generations[l]);
-
+//        printBestSolution(&generations[l]);
+        printBestSolutionParallel(&generations[l]);
     }
 
 }
 
+
+int main() {
+    srand(time(NULL));
+    clock_gettime(CLOCK_MONOTONIC, &begin);
+    //Codigo vai aqui
+
+    initializaDistances();
+    printMatrix(distances);
+    /*//Testing createRandomChromossome, printChromossome, and fitness;
+    struct Sample random = createRandomSample();
+    printSample(&random);
+    fitness(&random);*/
+
+    /*//Testing crossover
+     struct Sample parent1 = createRandomChromossome();
+     struct Sample parent2 = createRandomSample();
+     printf("\n Parent1");
+     printChromossome(&parent1);
+     printf("\n Parent2");
+     printChromossome(&parent2);
+     struct Sample child1 = crossover(&parent1, &parent2);
+     printf("\n Child");
+     printSample(&child1);*/
+    //TEMPO eh calculado daqui pra baixo
+    gaSolve();
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    double timeSpent = end.tv_sec - begin.tv_sec;
+    timeSpent += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
+    printf("\nTime spent: %.10lf seconds.\n", timeSpent);
+    return 0;
+}
 
